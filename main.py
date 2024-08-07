@@ -6,6 +6,8 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+from mongo.query import query_all
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
@@ -86,6 +88,7 @@ async def join(ctx):
         return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.lower().strip()
 
     await ctx.send("Please enter your email:")
+    print(query_all())
 
     try:
         msg = await bot.wait_for('message', check=check, timeout=90.0)  # 60 seconds to reply
