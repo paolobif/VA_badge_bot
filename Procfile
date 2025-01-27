@@ -1,1 +1,1 @@
-web: gunicorn app:discord
+python discord.py
