@@ -13,6 +13,8 @@ db = DataBase()
 log = db.log
 entrys = db["next_login"]
 
+print(db.querry_all())
+
 @app.route('/')
 def home():
     return 'Hello, World! This is a test route. Adding some stuff.'
