@@ -198,5 +198,6 @@ async def on_message(message):
         return
     await bot.process_commands(message)
 
-
-bot.run(TOKEN)
+if __name__ == '__main__':
+    bot.run(TOKEN)
+    print("Discord bot is running")
