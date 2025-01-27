@@ -95,15 +95,15 @@ if __name__ == "__main__":
     }
 
     # Test valid insertion
-    try:
-        test.insert(valid_test1)
-        print("Valid data inserted successfully!")
-    except ValueError as e:
-        print(e)
+    # try:
+    #     test.insert(valid_test1)
+    #     print("Valid data inserted successfully!")
+    # except ValueError as e:
+    #     print(e)
 
-    # Test invalid insertion
-    try:
-        test.insert(invalid_test1)
-        print("Invalid data inserted successfully!")
-    except ValueError as e:
-        print(e)
+    # # Test invalid insertion
+    # try:
+    #     test.insert(invalid_test1)
+    #     print("Invalid data inserted successfully!")
+    # except ValueError as e:
+    #     print(e)
