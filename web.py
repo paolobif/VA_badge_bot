@@ -49,8 +49,8 @@ def download_calendar(user_id):
     return response
 
 def run_flask():
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    app.run(host='0.0.0.0', port=8000, threaded=True)
 
 if __name__ == '__main__':
-    run_flask()
+    app.run(debug=True, host='0.0.0.0', port=8000)
     print("Flask is running")
