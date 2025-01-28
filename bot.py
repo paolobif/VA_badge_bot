@@ -3,7 +3,7 @@ import os
 import random
 import datetime
 
-import discord
+import bot
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -13,13 +13,13 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 # Define the intents object with specific intents enabled
-intents = discord.Intents.default()  # This enables the default intents like guilds and messages
+intents = bot.Intents.default()  # This enables the default intents like guilds and messages
 intents.members = True  # Enable the member intent if you need access to members information
 intents.message_content = True
 intents.reactions = True
 intents.messages = True
 # Initialize the client with the defined intents
-client = discord.Client(intents=intents)
+client = bot.Client(intents=intents)
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -88,7 +88,7 @@ async def join(ctx):
 
         # TODO: Save the user data (email and date) to your database or file.
 
-    except discord.TimeoutError:
+    except bot.TimeoutError:
         await dm_channel.send(
             "Looks like you didn't respond in time! ⌛\n"
             "No worries, just use the `!join` command again whenever you're ready. 🔄"
@@ -135,7 +135,7 @@ async def record_login(ctx):
                 "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and try again by using the `!record_login` command."
             )
 
-    except discord.TimeoutError:
+    except bot.TimeoutError:
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
             "If you'd like to record your login date, just use the `!record_login` command again."
@@ -185,7 +185,7 @@ async def unsubscribe(ctx):
             # If canceled, inform the user
             await dm_channel.send("No worries! You're still subscribed to our reminders. 😊")
 
-    except discord.TimeoutError:
+    except bot.TimeoutError:
         # Handle timeout
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
@@ -198,6 +198,9 @@ async def on_message(message):
         return
     await bot.process_commands(message)
 
-if __name__ == '__main__':
+def run_bot():
     bot.run(TOKEN)
+
+if __name__ == '__main__':
+    run_bot()
     print("Discord bot is running")

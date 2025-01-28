@@ -48,5 +48,9 @@ def download_calendar(user_id):
     response.headers["Content-Disposition"] = f"attachment; filename=calendar_{user_id}.ics"
     return response
 
-if __name__ == '__main__':
+def run_flask():
     app.run(debug=True, host='0.0.0.0', port=5001)
+
+if __name__ == '__main__':
+    run_flask()
+    print("Flask is running")
