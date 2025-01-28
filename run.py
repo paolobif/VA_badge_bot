@@ -1,5 +1,5 @@
 import threading
-from flask import run_flask
+from web import run_flask
 from bot import run_bot
 
 if __name__ == "__main__":
