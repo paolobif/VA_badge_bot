@@ -7,6 +7,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+from mongo.database import DataBase
 # from mongo.query import query_all
 
 load_dotenv()
