@@ -12,8 +12,8 @@ PASS = os.getenv('MONGO_PASS')
 
 
 class DataBase(MongoClient):
-    def __init__(self):
-        CONNECTION_STRING = f"mongodb+srv://bifulcopaolo:{PASS}@mdtest.n6uh2jo.mongodb.net/"
+    def __init__(self, passkey=PASS):
+        CONNECTION_STRING = f"mongodb+srv://bifulcopaolo:{passkey}@mdtest.n6uh2jo.mongodb.net/"
         MongoClient.__init__(self, CONNECTION_STRING)
 
         client = MongoClient(CONNECTION_STRING, tlsAllowInvalidCertificates=True)
@@ -31,12 +31,6 @@ class DataBase(MongoClient):
         """
         if not self.check_insert(item):
             raise ValueError("Item validation failed. Please check the provided data.")
-
-        # Check if the discord ID already exists
-        existing_entry = self.log.find_one({"discord": item["discord"]})
-        if existing_entry:
-            print(f"Entry with Discord ID '{item['discord']}' already exists.")
-            raise UserAlreadyExistsError(item["discord"])
 
         # Insert the item if no duplicate is found
         self.log.insert_one(item)
@@ -74,6 +68,11 @@ class DataBase(MongoClient):
                 print("No ID found in the document")
                 return None
 
+    def check_discord(self, discord_id):
+        # Check if the discord ID already exists
+        existing_entry = self.log.find_one({"discord": discord_id})
+        return existing_entry is not None
+
     @staticmethod
     def check_insert(item):
         """
@@ -96,6 +95,11 @@ class DataBase(MongoClient):
         # Validate 'discord'
         if not isinstance(item["discord"], str) or not item["discord"].strip():
             print(f"Invalid 'discord' field: {item['discord']}. Must be a non-empty string.")
+            return False
+
+        # Validate 'discord_id'
+        if not isinstance(item["discord_id"], str) or not item["discord_id"].strip():
+            print(f"Invalid 'discord' field: {item['discord_id']}. Must be a non-empty string.")
             return False
 
         # Validate 'email'
@@ -126,14 +130,15 @@ class DataBase(MongoClient):
         # If all validations pass
         return True
 
-
-# Errors
-class UserAlreadyExistsError(Exception):
-    """Exception raised when an attempt is made to insert an existing user."""
-    def __init__(self, discord_id):
-        self.message = f"Entry with Discord ID '{discord_id}' already exists."
-        super().__init__(self.message)
-
+    @staticmethod
+    def calc_next_login(last_login):
+        """
+        Given the last login datetime, calculate the next login datetime.
+        The next login is set to 30 days after the last login.
+        """
+        last_login_datetime = datetime.fromisoformat(last_login)
+        next_login_datetime = last_login_datetime + timedelta(days=30)
+        return next_login_datetime.isoformat()
 
 if __name__ == "__main__":
     # Get the database
@@ -145,6 +150,7 @@ if __name__ == "__main__":
     # Example valid data
     valid_test1 = {
         "discord": "test123",
+        "discord_id": "123456789012345678",  # Invalid field
         "email": "test@gmail.com",  # Valid email
         "last_login": random_date.isoformat(),  # Valid ISO 8601 format
         "next_login": next_login.isoformat(),
@@ -154,6 +160,7 @@ if __name__ == "__main__":
     # Example invalid data (invalid email)
     invalid_test1 = {
         "discord": "test123",
+        "discord_id": "123456789012345678",  # Invalid field
         "email": "not-an-email",  # Invalid email
         "last_login": "2025-01-01T10:00:00",  # Valid format
         "next_login": "2025-02-01T12:00:00",

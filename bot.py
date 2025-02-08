@@ -16,6 +16,11 @@ from mongo.database import DataBase
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+PASS = os.getenv('MONGO_PASS')
+
+# Initialize the database
+db = DataBase(PASS)
+print("Database initialized")
 
 # Define the intents object with specific intents enabled
 intents = discord.Intents.default()  # This enables the default intents like guilds and messages
@@ -36,6 +41,14 @@ async def join(ctx):
 
     # Open a DM channel with the user
     dm_channel = await ctx.author.create_dm()
+
+    if db.check_discord(ctx.author.id):
+        print("User already exists")
+        await dm_channel.send(
+            "You're already subscribed to VA Calendar Reminder Bot! 📅\n"
+            "If you need any assistance, feel free to use the `!help` command."
+        )
+        return
 
     try:
         # Introduction message
@@ -92,12 +105,28 @@ async def join(ctx):
         )
 
         # TODO: Save the user data (email and date) to your database or file.
+        print(last_login_date.isoformat())
+        insert_item = {
+            "discord": str(ctx.author.name),
+            "discord_id": str(ctx.author.id),
+            "email": email,
+            "last_login": last_login_date.isoformat(),
+            "next_login": db.calc_next_login(last_login_date.isoformat()),
+            "count": 0
+        }
+
+        try:
+            db.insert(insert_item)
+        except Exception as e:
+            print("Error inserting item:", e)
 
     except asyncio.TimeoutError:
         await dm_channel.send(
             "Looks like you didn't respond in time! ⌛\n"
             "No worries, just use the `!join` command again whenever you're ready. 🔄"
         )
+
+
 
 # Log a date
 @bot.command(name="log", help="Record your latest VA medical account login date.")
