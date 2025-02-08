@@ -8,6 +8,9 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from mongo.database import DataBase
+
+
+
 # from mongo.query import query_all
 
 load_dotenv()
@@ -22,10 +25,10 @@ intents.messages = True
 # Initialize the client with the defined intents
 client = discord.Client(intents=intents)
 
-discord = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Onboarding
-@discord.command(name="join", help='Starts a DM with VA Calendar Bot for onboarding.')
+@bot.command(name="join", help='Starts a DM with VA Calendar Bot for onboarding.')
 async def join(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs for further instructions!")
@@ -43,7 +46,7 @@ async def join(ctx):
         )
 
         # Wait for an email response
-        email_message = await discord.wait_for(
+        email_message = await bot.wait_for(
             'message',
             check=lambda m: m.author == ctx.author and m.channel == dm_channel,
             timeout=120.0  # 2 minutes timeout
@@ -63,7 +66,7 @@ async def join(ctx):
         )
 
         # Wait for a date response
-        date_message = await discord.wait_for(
+        date_message = await bot.wait_for(
             'message',
             check=lambda m: m.author == ctx.author and m.channel == dm_channel,
             timeout=120.0  # 2 minutes timeout
@@ -89,14 +92,14 @@ async def join(ctx):
 
         # TODO: Save the user data (email and date) to your database or file.
 
-    except discord.TimeoutError:
+    except bot.TimeoutError:
         await dm_channel.send(
             "Looks like you didn't respond in time! ⌛\n"
             "No worries, just use the `!join` command again whenever you're ready. 🔄"
         )
 
 # Log a date
-@discord.command(name="log", help="Record your latest VA medical account login date.")
+@bot.command(name="log", help="Record your latest VA medical account login date.")
 async def record_login(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs to record your login date!")
@@ -112,7 +115,7 @@ async def record_login(ctx):
         )
 
         # Wait for the user's response
-        date_message = await discord.wait_for(
+        date_message = await bot.wait_for(
             'message',
             check=lambda m: m.author == ctx.author and m.channel == dm_channel,
             timeout=120.0  # 2 minutes timeout
@@ -136,14 +139,14 @@ async def record_login(ctx):
                 "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and try again by using the `!record_login` command."
             )
 
-    except discord.TimeoutError:
+    except bot.TimeoutError:
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
             "If you'd like to record your login date, just use the `!record_login` command again."
         )
 
 # Unsubscribe
-@discord.command(name="unsubscribe", help="Unsubscribe from the VA Calendar Reminder Bot.")
+@bot.command(name="unsubscribe", help="Unsubscribe from the VA Calendar Reminder Bot.")
 async def unsubscribe(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs for further instructions!")
@@ -171,7 +174,7 @@ async def unsubscribe(ctx):
                 reaction.message.id == unsubscribe_message.id
             )
 
-        reaction, user = await discord.wait_for('reaction_add', timeout=60.0, check=check_reaction)
+        reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check_reaction)
 
         if str(reaction.emoji) == '👍':
             # If confirmed, unsubscribe the user
@@ -186,22 +189,22 @@ async def unsubscribe(ctx):
             # If canceled, inform the user
             await dm_channel.send("No worries! You're still subscribed to our reminders. 😊")
 
-    except discord.TimeoutError:
+    except bot.TimeoutError:
         # Handle timeout
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
             "If you'd like to unsubscribe, just use the `!unsubscribe` command again."
         )
 
-@discord.event
+@bot.event
 async def on_message(message):
-    if message.author == discord.user:
+    if message.author == bot.user:
         return
-    await discord.process_commands(message)
+    await bot.process_commands(message)
 
 def run_bot():
-    discord.run(TOKEN)
+    bot.run(TOKEN)
 
 if __name__ == '__main__':
+    print("Launching bot!")
     run_bot()
-    print("Discord bot is running")
