@@ -36,7 +36,7 @@ class DataBase(MongoClient):
         existing_entry = self.log.find_one({"discord": item["discord"]})
         if existing_entry:
             print(f"Entry with Discord ID '{item['discord']}' already exists.")
-            return False
+            raise UserAlreadyExistsError(item["discord"])
 
         # Insert the item if no duplicate is found
         self.log.insert_one(item)
@@ -125,6 +125,14 @@ class DataBase(MongoClient):
 
         # If all validations pass
         return True
+
+
+# Errors
+class UserAlreadyExistsError(Exception):
+    """Exception raised when an attempt is made to insert an existing user."""
+    def __init__(self, discord_id):
+        self.message = f"Entry with Discord ID '{discord_id}' already exists."
+        super().__init__(self.message)
 
 
 if __name__ == "__main__":

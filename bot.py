@@ -2,6 +2,7 @@
 import os
 import random
 import datetime
+import asyncio
 
 import discord
 from discord.ext import commands
@@ -28,7 +29,7 @@ client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Onboarding
-@bot.command(name="join", help='Starts a DM with VA Calendar Bot for onboarding.')
+@bot.command(name="join", aliases=["j"], help='Starts a DM with VA Calendar Bot for onboarding.')
 async def join(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs for further instructions!")
@@ -92,7 +93,7 @@ async def join(ctx):
 
         # TODO: Save the user data (email and date) to your database or file.
 
-    except bot.TimeoutError:
+    except asyncio.TimeoutError:
         await dm_channel.send(
             "Looks like you didn't respond in time! ⌛\n"
             "No worries, just use the `!join` command again whenever you're ready. 🔄"
@@ -107,39 +108,53 @@ async def record_login(ctx):
     # Open a DM channel with the user
     dm_channel = await ctx.author.create_dm()
 
+    # Send initial prompt message
+    message = await dm_channel.send(
+        "Let's record your latest login date to your VA medical account. 🏥\n"
+        "Please enter the date in **YYYY-MM-DD format**. For example, `2024-08-07`, or react with 👍 to log today's date."
+    )
+
+    # Add a thumbs up reaction to the message
+    await message.add_reaction('👍')
+
+    def check_message(m):
+        return m.author == ctx.author and m.channel == dm_channel
+
+    def check_reaction(reaction, user):
+        return user == ctx.author and str(reaction.emoji) == '👍' and reaction.message.id == message.id
+
     try:
-        # Prompt the user for their login date
-        await dm_channel.send(
-            "Let's record your latest login date to your VA medical account. 🏥\n"
-            "Please enter the date in **YYYY-MM-DD format**. For example, `2024-08-07`."
-        )
+        # Wait for a message or reaction
+        done, pending = await asyncio.wait([
+            bot.wait_for('message', check=check_message, timeout=120.0),
+            bot.wait_for('reaction_add', check=check_reaction, timeout=120.0)
+        ], return_when=asyncio.FIRST_COMPLETED)
 
-        # Wait for the user's response
-        date_message = await bot.wait_for(
-            'message',
-            check=lambda m: m.author == ctx.author and m.channel == dm_channel,
-            timeout=120.0  # 2 minutes timeout
-        )
-        date_input = date_message.content
+        for task in pending:
+            task.cancel()  # Cancel all pending tasks
 
-        # Validate the date format
-        try:
-            login_date = datetime.datetime.strptime(date_input, '%Y-%m-%d')
-            await dm_channel.send(
-                f"Thank you! 🎉\n"
-                f"Your login date **{login_date.strftime('%Y-%m-%d')}** has been recorded. 🗓️\n"
-                "We’ll remind you to log in to your VA medical account periodically."
-            )
+        if done:
+            res = done.pop().result()
+            if isinstance(res, discord.Message):
+                # User sent a message with the date
+                date_input = res.content
+                try:
+                    login_date = datetime.datetime.strptime(date_input, '%Y-%m-%d')
+                    response = f"Your login date **{login_date.strftime('%Y-%m-%d')}** has been recorded. 🗓️"
+                except ValueError:
+                    await dm_channel.send(
+                        "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and try again by using the `!record_login` command."
+                    )
+                    return
+            elif isinstance(res, tuple):
+                # User reacted with thumbs up, log today's date
+                login_date = datetime.datetime.today()
+                response = f"Today's date **{login_date.strftime('%Y-%m-%d')}** has been recorded as your login date. 🗓️"
 
+            await dm_channel.send(response)
             # TODO: Save the login date to your database or data storage
-            # Example: save_to_database(ctx.author.id, login_date)
 
-        except ValueError:
-            await dm_channel.send(
-                "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and try again by using the `!record_login` command."
-            )
-
-    except bot.TimeoutError:
+    except asyncio.TimeoutError:
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
             "If you'd like to record your login date, just use the `!record_login` command again."
@@ -189,12 +204,32 @@ async def unsubscribe(ctx):
             # If canceled, inform the user
             await dm_channel.send("No worries! You're still subscribed to our reminders. 😊")
 
-    except bot.TimeoutError:
+    except asyncio.TimeoutError:
         # Handle timeout
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
             "If you'd like to unsubscribe, just use the `!unsubscribe` command again."
         )
+
+# Help command
+@bot.command(name="commands", help="Displays all commands and their aliases.")
+async def list_commands(ctx):
+    embed = discord.Embed(title="Bot Commands List", description="Here are all the commands and their aliases:", color=0x00ff00)
+    for command in bot.commands:
+        # Add each command as a field in the embed
+        aliases = ', '.join(command.aliases) if command.aliases else 'No aliases'
+        embed.add_field(name=command.name, value=f"Aliases: {aliases}", inline=False)
+
+    await ctx.send(embed=embed)
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        # Send a message to the user suggesting them to use the help command
+        await ctx.send("It looks like that command doesn't exist. Try using `!help` to see the list of available commands.")
+    else:
+        # If you want, handle other types of errors here
+        raise error  # Reraises the error if it's not a CommandNotFound to avoid suppressing unintended errors
 
 @bot.event
 async def on_message(message):
