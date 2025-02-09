@@ -54,7 +54,7 @@ class DataBase(MongoClient):
             new_datetime = datetime.now().isoformat()
 
         result = self.log.update_one(
-            {"discord": discord_id},
+            {"discord_id": discord_id},
             {"$set": {"last_login": new_datetime}}
         )
 

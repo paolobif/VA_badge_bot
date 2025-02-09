@@ -3,11 +3,13 @@ import os
 import random
 import datetime
 import asyncio
+import json
 
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from urllib.parse import urljoin
+from dateutil import parser
 
 from mongo.database import DataBase
 
@@ -19,8 +21,9 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 PASS = os.getenv('MONGO_PASS')
 
-WEB_CAL_URL = "webcal://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
 WEB_URL = "https://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
+
+locked_channels = {}
 
 # Initialize the database
 db = DataBase(PASS)
@@ -36,6 +39,44 @@ intents.messages = True
 client = discord.Client(intents=intents)
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Command check to ensure the user is registered
+def is_registered():
+    """A command check that ensures the user is in the database."""
+    async def predicate(ctx):
+        # Replace 'db.check_discord' with whatever logic checks if the user is registered
+        if db.check_discord(ctx.author.id):
+            return True
+        else:
+            return False
+    return commands.check(predicate)
+
+# Manages to saved locked channels for the bot...
+SAVE_FILE = "locked_channels.json"
+
+def load_locked_channels():
+    global locked_channels
+    if os.path.exists(SAVE_FILE):
+        with open(SAVE_FILE, "r") as f:
+            locked_channels = json.load(f)  # e.g., {guild_id_str: channel_id_str}
+
+def save_locked_channels():
+    with open(SAVE_FILE, "w") as f:
+        json.dump(locked_channels, f)
+
+# On load what it runs.
+@bot.event
+async def on_ready():
+    load_locked_channels()  # load once bot is ready
+    print("Locked channels loaded:", locked_channels)
+
+# Command to set the locked channel
+@bot.command(name="setchannel", help="Sets the locked channel for this server.")
+@commands.has_permissions(manage_guild=True)
+async def set_channel(ctx, channel: discord.TextChannel):
+    locked_channels[str(ctx.guild.id)] = str(channel.id)
+    save_locked_channels()
+    await ctx.send(f"Locked channel set to {channel.mention}")
 
 # Onboarding
 @bot.command(name="join", aliases=["j"], help='Starts a DM with VA Calendar Bot for onboarding.')
@@ -80,7 +121,8 @@ async def join(ctx):
 
         await dm_channel.send(
             "Great! Now, could you please provide your last login date to your VA medical account? 🏥\n"
-            "Enter the date in **YYYY-MM-DD format**. For example, `2024-08-07`."
+            "Enter the date in **MM-DD-YYYY format**. For example, `01-02-24`. \n\n"
+            "Really, any format will work! We'll let you know if we don't understand."
         )
 
         # Wait for a date response
@@ -91,17 +133,24 @@ async def join(ctx):
         )
         date_input = date_message.content
 
-        # Validate the date format
-        try:
-            last_login_date = datetime.datetime.strptime(date_input, '%Y-%m-%d')
-        except ValueError:
+        last_login_date = convert_to_iso(date_input)
+
+        if last_login_date is None:
             await dm_channel.send(
-                "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and run `!join` again."
+                "Uh-oh! That doesn't look like a valid date. Please use a different format like DD-MM-YYYY `!join` again."
             )
             return
 
+        # # Validate the date format
+        # try:
+        #     last_login_date = datetime.datetime.strptime(date_input, '%Y-%m-%d')
+        # except ValueError:
+        #     await dm_channel.send(
+        #         "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and run `!join` again."
+        #     )
+        #     return
+
         # Confirmation message
-        cal_url = f"{WEB_CAL_URL}/download_calendar/{ctx.author.id}"
         web_url = f"{WEB_URL}/download_calendar/{ctx.author.id}"
 
         await dm_channel.send(
@@ -110,10 +159,9 @@ async def join(ctx):
             f"- **Last Login Date**: {last_login_date.strftime('%Y-%m-%d')}\n\n"
             "You’re all set! I’ll send reminders to log in and check your VA medical account. 🗓️\n\n"
             "Additionally, you can subscribe to your calendar to receive automatic updates. \n\n"
-            f"• **iPhone Users**: Open the link in Safari using [Link]({cal_url}) to directly add it to your calendar.\n"
             "• **Others**: Copy and paste the URL below into your preferred calendar app’s “Subscribe by URL” or “Add Calendar” feature.\n\n"
-            "Click or copy the link below to subscribe to the calendar:\n"
-            f"```\n{web_url}\n```"
+            f"```\n{web_url}\n```\n"
+            "or type `!instructions` for more detailed instructions."
         )
 
         # Insert the user's data into the database
@@ -141,6 +189,7 @@ async def join(ctx):
 
 # Log a date
 @bot.command(name="log", help="Record your latest VA medical account login date.")
+@is_registered()
 async def record_login(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs to record your login date!")
@@ -151,7 +200,7 @@ async def record_login(ctx):
     # Send initial prompt message
     message = await dm_channel.send(
         "Let's record your latest login date to your VA medical account. 🏥\n"
-        "Please enter the date in **YYYY-MM-DD format**. For example, `2024-08-07`, or react with 👍 to log today's date."
+        "Please enter the date in **MM-DD-YYYY format**. For example, `02-02-24` or `Feb 2, 24`, or react with 👍 to log today's date."
     )
 
     # Add a thumbs up reaction to the message
@@ -165,10 +214,17 @@ async def record_login(ctx):
 
     try:
         # Wait for a message or reaction
-        done, pending = await asyncio.wait([
-            bot.wait_for('message', check=check_message, timeout=120.0),
+        task_message = asyncio.create_task(
+            bot.wait_for('message', check=check_message, timeout=120.0)
+        )
+        task_reaction = asyncio.create_task(
             bot.wait_for('reaction_add', check=check_reaction, timeout=120.0)
-        ], return_when=asyncio.FIRST_COMPLETED)
+        )
+
+        done, pending = await asyncio.wait(
+            [task_message, task_reaction],
+            return_when=asyncio.FIRST_COMPLETED
+        )
 
         for task in pending:
             task.cancel()  # Cancel all pending tasks
@@ -178,24 +234,24 @@ async def record_login(ctx):
             if isinstance(res, discord.Message):
                 # User sent a message with the date
                 date_input = res.content
-                try:
-                    login_date = datetime.datetime.strptime(date_input, '%Y-%m-%d')
-                    response = f"Your login date **{login_date.strftime('%Y-%m-%d')}** has been recorded. 🗓️"
-                except ValueError:
+
+                login_date = convert_to_iso(date_input)
+
+                if login_date is None:
                     await dm_channel.send(
-                        "Uh-oh! That doesn't look like a valid date. Please use the format **YYYY-MM-DD** and try again by using the `!record_login` command."
+                        "Uh-oh! That doesn't look like a valid date. Please use a different format like MM-DD-YYYY `!join` again."
                     )
                     return
+
             elif isinstance(res, tuple):
                 # User reacted with thumbs up, log today's date
                 login_date = datetime.datetime.today()
                 response = f"Today's date **{login_date.strftime('%Y-%m-%d')}** has been recorded as your login date. 🗓️"
-
-            await dm_channel.send(response)
+                await dm_channel.send(response)
 
             # Update the user's data in the database
             try:
-                db.update_last_login(ctx.author.id, login_date)
+                db.update_last_login(ctx.author.id, login_date.isoformat())
             except Exception as e:
                 print("Error updating last login date:", e)
 
@@ -208,6 +264,7 @@ async def record_login(ctx):
 
 # Unsubscribe
 @bot.command(name="unsubscribe", help="Unsubscribe from the VA Calendar Reminder Bot.")
+@is_registered()
 async def unsubscribe(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs for further instructions!")
@@ -263,6 +320,7 @@ async def unsubscribe(ctx):
 
 # Check next login date
 @bot.command(name="next", help="Check your next VA medical account login date.")
+@is_registered()
 async def check_next_login(ctx):
     if ctx.guild is not None:
         await ctx.send(f"👋 {ctx.author} - Please check your DMs for your next login date!")
@@ -280,27 +338,70 @@ async def check_next_login(ctx):
 
         # Formatting datetime object to a more readable form
         readable_date_time = next_login_datetime.strftime("%A, %B %d, %Y")
-        cal_url = f"{WEB_CAL_URL}/download_calendar/{ctx.author.id}"
         web_url = f"{WEB_URL}/download_calendar/{ctx.author.id}"
-        
+
         await dm_channel.send(
             f"**Your next VA medical account login date:** {readable_date_time} 🗓️\n\n"
             "Stay on top of your reminders by subscribing to your personal calendar! 🎉\n\n"
-            "**iPhone/iPad (Safari)** 📱\n"
-            "• Open Safari and visit this "
-            f"[Add to Calendar]({cal_url}) link (uses `webcal://`).\n"
-            "• **Follow the prompts** to add the events to your Apple Calendar.\n\n"
-            "**Other Devices/Apps** 💻\n"
-            "• Copy or click the link below to download/subscribe.\n"
-            "• For **Google Calendar**, go to *Other Calendars* → *Add by URL*, then paste it.\n\n"
+
             "Here’s the calendar link (easy to copy):\n"
-            f"```bash\n{web_url}\n```"
+            f"```bash\n{web_url}\n\n``` \n\n"
+            "**For help subscribing** to your calendar in Outlook, Google Calendar, etc... -\n"
+            "type `!instructions`"
         )
     else:
         await dm_channel.send(
             "It seems like you haven't subscribed to VA Calendar Reminder Bot yet. 😅\n"
             "Use the `!join` command to get started!"
         )
+
+# Instructions for linking the calendar
+@bot.command(name="instructions", help="Provides instructions on how to add the calendar feed to your calendar app.")
+async def instructions(ctx):
+    """
+    Explains how to add the user's ICS link to different calendar apps or platforms.
+    """
+    # Decide whether to send instructions in the current channel or via DM
+    # Here, we'll DM the user for cleanliness, but you could just use `await ctx.send(...)` for a channel message.
+    dm_channel = await ctx.author.create_dm()
+
+    # Generate the user's calendar link, e.g., an HTTPS link to download the ICS file
+    # If your route ends with .ics, consider including that in the URL.
+    user_calendar_url = f"{WEB_URL}download_calendar/{ctx.author.id}.ics"
+
+    instructions_text = (
+        "**How to Add the VA Badge Reminder Calendar**\n\n"
+        "Below are instructions for adding the calendar to some common calendar apps. "
+        "Your personal link is included at the bottom.\n\n"
+        "**1. Apple Calendar (iOS/macOS)** 🏠\n"
+        "• On **iPhone/iPad**: Open Safari and enter a link that starts with `webcal://` (if supported). "
+        "  Since Discord doesn't make `webcal://` clickable, you might need to copy/paste it into Safari.\n"
+        "• Alternatively, open Safari at the regular HTTPS link and if prompted, allow subscription.\n"
+        "• Follow the on-screen prompts to confirm you want to add this subscription.\n\n"
+        "**2. Google Calendar (Web/Desktop)** 🌐\n"
+        "• Go to [Google Calendar](https://calendar.google.com) in a web browser.\n"
+        "• On the left sidebar, find **Other calendars** → **Add by URL**.\n"
+        f"• Paste the link below (`{user_calendar_url}`) into the **URL** field.\n"
+        "• Click **Add Calendar** and wait for it to import.\n\n"
+        "**3. Outlook (Desktop)** 📧\n"
+        "• In Outlook, go to **File** → **Account Settings** → **Account Settings**.\n"
+        "• Select the **Internet Calendars** tab, then **New**.\n"
+        f"• Paste the link: `{user_calendar_url}`\n"
+        "• Click **Add**, then **Close**. The calendar should appear under **Other Calendars**.\n\n"
+        "**4. Other Devices/Apps**\n"
+        "• Most calendar apps have an option like 'Subscribe by URL' or 'Add Calendar via URL'.\n"
+        "• Copy the link below and paste it where your app instructs.\n\n"
+        "**Your Personal Calendar Link**:\n"
+        "```\n"
+        f"{user_calendar_url}\n"
+        "```\n"
+        "Depending on the app, you can either click it (if supported) or copy/paste it. "
+        "If you're on iOS/macOS and want to try a `webcal://` link, replace the prefix `https://` with `webcal://` "
+        "when entering it in Safari.\n\n"
+        "If you run into any trouble, just let me know!"
+    )
+
+    await dm_channel.send(instructions_text)
 
 # Help command
 @bot.command(name="commands", help="Displays all commands and their aliases.")
@@ -319,6 +420,11 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         # Send a message to the user suggesting them to use the help command
         await ctx.send("It looks like that command doesn't exist. Try using `!help` to see the list of available commands.")
+    elif isinstance(error, commands.CheckFailure):
+        # The user failed a custom check (e.g., not registered).
+        # Does nothing....
+        await ctx.send("You must run `!join` first to register before using this command.")
+        # pass
     else:
         # If you want, handle other types of errors here
         raise error  # Reraises the error if it's not a CommandNotFound to avoid suppressing unintended errors
@@ -327,10 +433,35 @@ async def on_command_error(ctx, error):
 async def on_message(message):
     if message.author == bot.user:
         return
+    if message.guild:
+        locked_id = locked_channels.get(str(message.guild.id))
+        if locked_id and locked_id != message.channel.id:
+            # If the user message is not "join"
+            return
+
     await bot.process_commands(message)
 
 def run_bot():
     bot.run(TOKEN)
+
+
+# Converts any date string to a datetime object
+def convert_to_iso(date_string):
+    """
+    Attempts to parse a date/time string in various common formats
+    and returns a standard ISO 8601 string (e.g., '2025-02-09T14:30:00').
+
+    :param date_string: A string representing a date/time in any of many possible formats.
+    :return: ISO-formatted date/time string if parsing succeeds, otherwise None.
+    """
+    try:
+        # Use dateutil.parser to parse the input string
+        dt = parser.parse(date_string)
+        return dt
+    except (ValueError, TypeError):
+        # If parsing fails, handle or return None
+        return None
+
 
 if __name__ == '__main__':
     print("Launching bot!")
