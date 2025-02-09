@@ -19,7 +19,8 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 PASS = os.getenv('MONGO_PASS')
 
-WEB_URL = "webcal://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
+WEB_CAL_URL = "webcal://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
+WEB_URL = "https://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
 
 # Initialize the database
 db = DataBase(PASS)
@@ -100,16 +101,19 @@ async def join(ctx):
             return
 
         # Confirmation message
-        calendar_url = f"{WEB_URL}/download_calendar/{ctx.author.id}.ics"
+        cal_url = f"{WEB_CAL_URL}/download_calendar/{ctx.author.id}"
+        web_url = f"{WEB_URL}/download_calendar/{ctx.author.id}"
 
         await dm_channel.send(
             f"Thank you! 🎉\n\nHere’s what I’ve recorded:\n"
             f"- **Preferred Email**: {email}\n"
             f"- **Last Login Date**: {last_login_date.strftime('%Y-%m-%d')}\n\n"
             "You’re all set! I’ll send reminders to log in and check your VA medical account. 🗓️\n\n"
-            "Additionally, you can add these dates automatically to your calendar. "
-            "Just click the following link to download and add the event to your personal calendar: "
-            f"[Add to Calendar]({calendar_url})"
+            "Additionally, you can subscribe to your calendar to receive automatic updates. \n\n"
+            f"• **iPhone Users**: Open the link in Safari using [Link]({cal_url}) to directly add it to your calendar.\n"
+            "• **Others**: Copy and paste the URL below into your preferred calendar app’s “Subscribe by URL” or “Add Calendar” feature.\n\n"
+            "Click or copy the link below to subscribe to the calendar:\n"
+            f"```\n{web_url}\n```"
         )
 
         # Insert the user's data into the database
@@ -276,9 +280,21 @@ async def check_next_login(ctx):
 
         # Formatting datetime object to a more readable form
         readable_date_time = next_login_datetime.strftime("%A, %B %d, %Y")
+        cal_url = f"{WEB_CAL_URL}/download_calendar/{ctx.author.id}"
+        web_url = f"{WEB_URL}/download_calendar/{ctx.author.id}"
+        
         await dm_channel.send(
-            f"Your next VA medical account login date is on **{readable_date_time}**. 🗓️\n\n"
-            f"You can also add the events to your calendar automatically by clicking the following link: {f'{WEB_URL}download_calendar/{ctx.author.id}'}"
+            f"**Your next VA medical account login date:** {readable_date_time} 🗓️\n\n"
+            "Stay on top of your reminders by subscribing to your personal calendar! 🎉\n\n"
+            "**iPhone/iPad (Safari)** 📱\n"
+            "• Open Safari and visit this "
+            f"[Add to Calendar]({cal_url}) link (uses `webcal://`).\n"
+            "• **Follow the prompts** to add the events to your Apple Calendar.\n\n"
+            "**Other Devices/Apps** 💻\n"
+            "• Copy or click the link below to download/subscribe.\n"
+            "• For **Google Calendar**, go to *Other Calendars* → *Add by URL*, then paste it.\n\n"
+            "Here’s the calendar link (easy to copy):\n"
+            f"```bash\n{web_url}\n```"
         )
     else:
         await dm_channel.send(
