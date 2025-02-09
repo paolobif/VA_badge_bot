@@ -19,7 +19,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 PASS = os.getenv('MONGO_PASS')
 
-WEB_URL = "https://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
+WEB_URL = "webcal://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
 
 # Initialize the database
 db = DataBase(PASS)
@@ -100,7 +100,7 @@ async def join(ctx):
             return
 
         # Confirmation message
-        calendar_url = urljoin(WEB_URL, f"download_calendar/{ctx.author.id}")
+        calendar_url = urljoin(WEB_URL, f"download_calendar/{ctx.author.id}.ics")
 
         await dm_channel.send(
             f"Thank you! 🎉\n\nHere’s what I’ve recorded:\n"
