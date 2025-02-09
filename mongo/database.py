@@ -37,6 +37,13 @@ class DataBase(MongoClient):
         print("Item inserted successfully!")
         return True
 
+    def get_user(self, discord_id):
+        """
+        Retrieve a user's information from the database using their Discord ID.
+        """
+        result = self.log.find_one({"discord_id": discord_id})
+        return result
+
     def update_last_login(self, discord_id, new_datetime=None):
         """
         Updates the last_login field for a user identified by their Discord ID.
@@ -73,6 +80,16 @@ class DataBase(MongoClient):
         existing_entry = self.log.find_one({"discord": discord_id})
         return existing_entry is not None
 
+    def delete_from_discord_id(self, discord_id):
+        # delete the user from discord id
+        result = self.log.delete_one({"discord_id": discord_id})
+        if result.deleted_count > 0:
+            print(f"Successfully deleted user with Discord ID: {discord_id}.")
+            return True
+        else:
+            print(f"No user found with Discord ID: {discord_id}.")
+            return False
+
     @staticmethod
     def check_insert(item):
         """
@@ -98,8 +115,8 @@ class DataBase(MongoClient):
             return False
 
         # Validate 'discord_id'
-        if not isinstance(item["discord_id"], str) or not item["discord_id"].strip():
-            print(f"Invalid 'discord' field: {item['discord_id']}. Must be a non-empty string.")
+        if not isinstance(item["discord_id"], int) or not item["discord_id"]:
+            print(f"Invalid 'discord_id' field: {item['discord_id']}. Must be a non-empty int.")
             return False
 
         # Validate 'email'
@@ -150,7 +167,7 @@ if __name__ == "__main__":
     # Example valid data
     valid_test1 = {
         "discord": "test123",
-        "discord_id": "123456789012345678",  # Invalid field
+        "discord_id": 123456789012345678,  # valid field
         "email": "test@gmail.com",  # Valid email
         "last_login": random_date.isoformat(),  # Valid ISO 8601 format
         "next_login": next_login.isoformat(),
@@ -180,3 +197,6 @@ if __name__ == "__main__":
         print("Invalid data inserted successfully!")
     except ValueError as e:
         print(e)
+
+    # Remove the test entries
+    test.log.delete_one(valid_test1)

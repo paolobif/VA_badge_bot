@@ -104,11 +104,11 @@ async def join(ctx):
             "You’re all set! I’ll send reminders to log in and check your VA medical account. 🗓️"
         )
 
-        # TODO: Save the user data (email and date) to your database or file.
+        # Insert the user's data into the database
         print(last_login_date.isoformat())
         insert_item = {
             "discord": str(ctx.author.name),
-            "discord_id": str(ctx.author.id),
+            "discord_id": ctx.author.id,
             "email": email,
             "last_login": last_login_date.isoformat(),
             "next_login": db.calc_next_login(last_login_date.isoformat()),
@@ -120,13 +120,12 @@ async def join(ctx):
         except Exception as e:
             print("Error inserting item:", e)
 
+    # Handle timeout
     except asyncio.TimeoutError:
         await dm_channel.send(
             "Looks like you didn't respond in time! ⌛\n"
             "No worries, just use the `!join` command again whenever you're ready. 🔄"
         )
-
-
 
 # Log a date
 @bot.command(name="log", help="Record your latest VA medical account login date.")
@@ -181,7 +180,13 @@ async def record_login(ctx):
                 response = f"Today's date **{login_date.strftime('%Y-%m-%d')}** has been recorded as your login date. 🗓️"
 
             await dm_channel.send(response)
-            # TODO: Save the login date to your database or data storage
+
+            # Update the user's data in the database
+            try:
+                db.update_last_login(ctx.author.id, login_date)
+            except Exception as e:
+                print("Error updating last login date:", e)
+
 
     except asyncio.TimeoutError:
         await dm_channel.send(
@@ -227,7 +232,11 @@ async def unsubscribe(ctx):
                 "If you ever wish to rejoin, you can always use the `!join` command!"
             )
 
-            # TODO: Remove the user's data from your database or data storage
+            # Remove the user from the database
+            try:
+                db.delete_from_discord_id(ctx.author.id)
+            except Exception as e:
+                print("Error deleting user:", e)
 
         elif str(reaction.emoji) == '👎':
             # If canceled, inform the user
@@ -238,6 +247,34 @@ async def unsubscribe(ctx):
         await dm_channel.send(
             "It seems like you didn't respond in time. ⌛\n"
             "If you'd like to unsubscribe, just use the `!unsubscribe` command again."
+        )
+
+# Check next login date
+@bot.command(name="next", help="Check your next VA medical account login date.")
+async def check_next_login(ctx):
+    if ctx.guild is not None:
+        await ctx.send(f"👋 {ctx.author} - Please check your DMs for your next login date!")
+
+    # Open a DM channel with the user
+    dm_channel = await ctx.author.create_dm()
+
+    # Fetch the user's data from the database
+    user_data = db.get_user(ctx.author.id)
+
+    if user_data:
+        next_login_date = user_data['next_login']
+        # Parsing ISO 8601 string to datetime object
+        next_login_datetime = datetime.datetime.fromisoformat(next_login_date)
+
+        # Formatting datetime object to a more readable form
+        readable_date_time = next_login_datetime.strftime("%A, %B %d, %Y")
+        await dm_channel.send(
+            f"Your next VA medical account login date is on **{readable_date_time}**. 🗓️"
+        )
+    else:
+        await dm_channel.send(
+            "It seems like you haven't subscribed to VA Calendar Reminder Bot yet. 😅\n"
+            "Use the `!join` command to get started!"
         )
 
 # Help command
@@ -251,6 +288,7 @@ async def list_commands(ctx):
 
     await ctx.send(embed=embed)
 
+# Error handling
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):

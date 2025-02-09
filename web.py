@@ -17,18 +17,16 @@ entrys = db["next_login"]
 def home():
     return 'Hello, World! This is a test route. Adding some stuff.'
 
-@app.route('/download_calendar/<user_id>')
+@app.route('/download_calendar/<discord_id>')
 def download_calendar(user_id):
     # Create a new calendar
     cal = Calendar()
 
     # Fetch user-specific events from MongoDB
     try:
-        user_object_id = ObjectId(user_id)  # Convert to ObjectId
+        events = log.find({'discord_id': user_id})
     except:
         return "Invalid user ID", 400
-
-    events = log.find({'_id': user_object_id})
 
     for event_data in events:
         event = Event()
