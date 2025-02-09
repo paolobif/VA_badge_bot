@@ -77,7 +77,7 @@ class DataBase(MongoClient):
 
     def check_discord(self, discord_id):
         # Check if the discord ID already exists
-        existing_entry = self.log.find_one({"discord": discord_id})
+        existing_entry = self.log.find_one({"discord_id": discord_id})
         return existing_entry is not None
 
     def delete_from_discord_id(self, discord_id):

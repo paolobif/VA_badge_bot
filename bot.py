@@ -100,7 +100,7 @@ async def join(ctx):
             return
 
         # Confirmation message
-        calendar_url = urljoin(WEB_URL, f"download_calendar/{ctx.author.id}.ics")
+        calendar_url = f"{WEB_URL}/download_calendar/{ctx.author.id}.ics"
 
         await dm_channel.send(
             f"Thank you! 🎉\n\nHere’s what I’ve recorded:\n"
@@ -277,7 +277,8 @@ async def check_next_login(ctx):
         # Formatting datetime object to a more readable form
         readable_date_time = next_login_datetime.strftime("%A, %B %d, %Y")
         await dm_channel.send(
-            f"Your next VA medical account login date is on **{readable_date_time}**. 🗓️"
+            f"Your next VA medical account login date is on **{readable_date_time}**. 🗓️\n\n"
+            f"You can also add the events to your calendar automatically by clicking the following link: {f'{WEB_URL}download_calendar/{ctx.author.id}'}"
         )
     else:
         await dm_channel.send(

@@ -17,7 +17,7 @@ entrys = db["next_login"]
 def home():
     return 'Hello, World! This is a test route. Adding some stuff.'
 
-@app.route('/download_calendar/<discord_id>.ics')
+@app.route('/download_calendar/<discord_id>')
 def download_calendar(discord_id):
     # Create a new calendar
     cal = Calendar()
