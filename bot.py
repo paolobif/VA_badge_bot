@@ -7,16 +7,19 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from urllib.parse import urljoin
 
 from mongo.database import DataBase
 
 
 
-# from mongo.query import query_all
+
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 PASS = os.getenv('MONGO_PASS')
+
+WEB_URL = "https://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
 
 # Initialize the database
 db = DataBase(PASS)
@@ -97,11 +100,16 @@ async def join(ctx):
             return
 
         # Confirmation message
+        calendar_url = urljoin(WEB_URL, f"download_calendar/{ctx.author.id}")
+
         await dm_channel.send(
             f"Thank you! 🎉\n\nHere’s what I’ve recorded:\n"
             f"- **Preferred Email**: {email}\n"
             f"- **Last Login Date**: {last_login_date.strftime('%Y-%m-%d')}\n\n"
-            "You’re all set! I’ll send reminders to log in and check your VA medical account. 🗓️"
+            "You’re all set! I’ll send reminders to log in and check your VA medical account. 🗓️\n\n"
+            "Additionally, you can add these dates automatically to your calendar. "
+            "Just click the following link to download and add the event to your personal calendar: "
+            f"[Add to Calendar]({calendar_url})"
         )
 
         # Insert the user's data into the database

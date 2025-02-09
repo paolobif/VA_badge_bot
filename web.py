@@ -18,13 +18,13 @@ def home():
     return 'Hello, World! This is a test route. Adding some stuff.'
 
 @app.route('/download_calendar/<discord_id>')
-def download_calendar(user_id):
+def download_calendar(discord_id):
     # Create a new calendar
     cal = Calendar()
 
     # Fetch user-specific events from MongoDB
     try:
-        events = log.find({'discord_id': user_id})
+        events = log.find({'discord_id': discord_id})
     except:
         return "Invalid user ID", 400
 
@@ -55,7 +55,7 @@ def download_calendar(user_id):
 
     # Return the calendar file
     response = Response(calendar_string, mimetype="text/calendar")
-    response.headers["Content-Disposition"] = f"attachment; filename=calendar_{user_id}.ics"
+    response.headers["Content-Disposition"] = f"attachment; filename=calendar_{discord_id}.ics"
     return response
 
 def run_flask():
