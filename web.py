@@ -1,4 +1,4 @@
-from flask import Flask, Response, request
+from flask import Flask, Response
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from ics import Calendar, Event
@@ -31,16 +31,19 @@ def download_calendar(discord_id):
         return "Invalid user ID", 400
 
     for event_data in events:
+        # calc 30 days later
+        thirty_days_later = datetime.fromisoformat(event_data['last_login']) + timedelta(days=90)
+
         event = Event()
         event.name = "30 Day VA Badge Login"
-        event.begin = event_data['next_login']
+        event.begin = thirty_days_later.isoformat()
         event.duration = timedelta(minutes=15)
         event.description = "Go to the VA to login"
         event.location = "Portland VA"
         cal.events.add(event)
 
         # Calculate date for 90 days later
-        ninety_days_later = datetime.fromisoformat(event_data['next_login']) + timedelta(days=90)
+        ninety_days_later = datetime.fromisoformat(event_data['last_login']) + timedelta(days=90)
 
         # Second event
         second_event = Event()
