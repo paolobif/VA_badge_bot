@@ -78,6 +78,17 @@ async def set_channel(ctx, channel: discord.TextChannel):
     save_locked_channels()
     await ctx.send(f"Locked channel set to {channel.mention}")
 
+@bot.command(name="clearchannel", help="Clears the locked channel setting for this server.")
+@commands.has_permissions(manage_guild=True)  # Optional: require Manage Server permission
+async def clear_channel(ctx):
+    guild_id_str = str(ctx.guild.id)
+    if guild_id_str in locked_channels:
+        locked_channels.pop(guild_id_str)
+        save_locked_channels()
+        await ctx.send("The locked channel setting has been cleared for this server. The bot will now respond in any channel.")
+    else:
+        await ctx.send("No locked channel is currently set for this server.")
+
 # Onboarding
 @bot.command(name="join", aliases=["j"], help='Starts a DM with VA Calendar Bot for onboarding.')
 async def join(ctx):
@@ -433,15 +444,18 @@ async def on_command_error(ctx, error):
 async def on_message(message):
     if message.author == bot.user:
         return
+
     if message.guild:
-        locked_id = int(locked_channels.get(str(message.guild.id)))
-        print(locked_id, message.content, message.channel.id)
-        if locked_id and locked_id == message.channel.id:
+        locked_id = locked_channels.get(str(message.guild.id))
+        if locked_id is None:
+            # If no lock permsions have been set yet.
+            pass
+        elif locked_id and locked_id == str(message.channel.id):
             # If the user message is not "join"
             pass
         else:
             return
-
+        
     await bot.process_commands(message)
 
 def run_bot():
