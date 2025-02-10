@@ -254,6 +254,9 @@ async def record_login(ctx):
                     )
                     return
 
+                response = f"Today's date **{login_date.strftime('%Y-%m-%d')}** has been recorded as your login date. 🗓️"
+                await dm_channel.send(response)
+
             elif isinstance(res, tuple):
                 # User reacted with thumbs up, log today's date
                 login_date = datetime.datetime.today()
