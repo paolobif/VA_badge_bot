@@ -21,7 +21,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 PASS = os.getenv('MONGO_PASS')
 
-WEB_URL = "https://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net/"
+WEB_URL = "https://vabot-g6b3cfafa8fybfdj.westus2-01.azurewebsites.net"
 
 locked_channels = {}
 

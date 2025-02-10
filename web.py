@@ -21,9 +21,7 @@ def home():
 def download_calendar(discord_id):
     # Create a new calendar
     cal = Calendar()
-    # Add a default calendar name
-    cal.extra.append("X-WR-CALNAME: VA Badge Reminder Calendar")
-
+    
     # Fetch user-specific events from MongoDB
     try:
         events = log.find({'discord_id': discord_id})
