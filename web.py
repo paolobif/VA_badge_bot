@@ -21,17 +21,17 @@ def home():
 def download_calendar(discord_id):
     # Create a new calendar
     cal = Calendar()
-    
+
     # Fetch user-specific events from MongoDB
-    try:
-        events = log.find({'discord_id': discord_id})
-    except:
-        return "Invalid user ID", 400
+
+    events = log.find({'discord_id': int(discord_id)})
 
     for event_data in events:
         # calc 30 days later
-        thirty_days_later = datetime.fromisoformat(event_data['last_login']) + timedelta(days=90)
-
+        print(1)
+        thirty_days_later = datetime.fromisoformat(event_data['last_login']) + timedelta(days=30)
+        print(event_data['last_login'])
+        print("test")
         event = Event()
         event.name = "30 Day VA Badge Login"
         event.begin = thirty_days_later.isoformat()
@@ -54,12 +54,13 @@ def download_calendar(discord_id):
 
     # Convert calendar to string
     calendar_string = str(cal)
-    print(calendar_string)
+    # print(calendar_string)
 
     # Return the calendar file
     response = Response(calendar_string, mimetype="text/calendar")
     response.headers["Content-Disposition"] = f"attachment; filename=calendar_{discord_id}.ics"
     return response
+    # return calendar_string
 
 def run_flask():
     app.run(host='0.0.0.0', port=8000, threaded=True)
