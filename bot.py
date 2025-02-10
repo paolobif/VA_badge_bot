@@ -430,7 +430,7 @@ async def list_commands(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         # Send a message to the user suggesting them to use the help command
-        await ctx.send("It looks like that command doesn't exist. Try using `!help` to see the list of available commands.")
+        await ctx.send("It looks like that command doesn't exist. Try using `!help` to see the list of available commands. To log a date use `!log`")
     elif isinstance(error, commands.CheckFailure):
         # The user failed a custom check (e.g., not registered).
         # Does nothing....
@@ -455,7 +455,7 @@ async def on_message(message):
             pass
         else:
             return
-        
+
     await bot.process_commands(message)
 
 def run_bot():
