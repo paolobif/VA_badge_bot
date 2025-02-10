@@ -55,7 +55,10 @@ class DataBase(MongoClient):
 
         result = self.log.update_one(
             {"discord_id": discord_id},
-            {"$set": {"last_login": new_datetime}}
+            {"$set": {
+                "last_login": new_datetime,
+                "next_login": self.calc_next_login(new_datetime)
+            }}
         )
 
         if result.matched_count > 0:
