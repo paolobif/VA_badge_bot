@@ -434,9 +434,12 @@ async def on_message(message):
     if message.author == bot.user:
         return
     if message.guild:
-        locked_id = locked_channels.get(str(message.guild.id))
-        if locked_id and locked_id != message.channel.id:
+        locked_id = int(locked_channels.get(str(message.guild.id)))
+        print(locked_id, message.content, message.channel.id)
+        if locked_id and locked_id == message.channel.id:
             # If the user message is not "join"
+            pass
+        else:
             return
 
     await bot.process_commands(message)
